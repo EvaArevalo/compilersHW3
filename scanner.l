@@ -145,6 +145,11 @@ ffprintf	{if(printTokenOn==1) printf("#key:%s\n",yytext);  addWordToLine(); retu
 "*="			{if(printTokenOn==1) printf("#assign:%s\n",yytext);  addWordToLine(); return MUL_ASSIGN;}
 "/="			{if(printTokenOn==1) printf("#assign:%s\n",yytext);  addWordToLine(); return DIV_ASSIGN;}
 
+high			{if(printTokenOn==1) printf("#assign:%s\n",yytext);  addWordToLine(); return HIGH;}
+low				{if(printTokenOn==1) printf("#assign:%s\n",yytext);  addWordToLine(); return LOW;}
+digitalWrite    {if(printTokenOn==1) printf("#assign:%s\n",yytext);  addWordToLine(); return DIGITALWRITE;}
+delay			{if(printTokenOn==1) printf("#assign:%s\n",yytext);  addWordToLine(); return DELAY;}
+
 {Whitespace}	{addWordToLine();}
 {Operator}		{if(printTokenOn==1) printf("#op:%s\n",yytext);  addWordToLine(); return *yytext;}
 {Punctuation}		{if(printTokenOn==1) printf("#punc:%s\n",yytext);  addWordToLine(); return *yytext;}
@@ -242,7 +247,7 @@ void freeLineContents(){
 }
 
 void yyerror(const char *msg ) {	
-	fprintf( stderr, "*** Error at line %d:", lineCount+1);
+	fprintf( stderr, "*** Error at line %d: ", lineCount+1);
 	int j;
 	for(j=0;j<wordCount;j++)
 		fprintf(stderr,"%s",lineContents[j]);
