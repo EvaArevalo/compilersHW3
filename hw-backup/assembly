@@ -1,0 +1,204 @@
+movi $r0, 0
+swi $r0, [$sp + 4]
+lwi $r0, [$sp + 4]
+swi  $r0, [$sp + 0]
+movi $r0, 4
+swi $r0, [$sp + 8]
+lwi $r0, [$sp + 8]
+swi  $r0, [$sp + 4]
+movi $r0, 3
+swi $r0, [$sp + 12]
+lwi $r0, [$sp + 12]
+swi  $r0, [$sp + 8]
+lwi $r0, [$sp + 0]
+swi $r0, [$sp + 12]
+lwi $r0, [$sp + 4]
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+beqz $r0, .OR1
+lwi $r0, [$sp + 12]
+beqz $r0, .OR0
+.OR0:
+movi $r0, 1
+j .OR2
+.OR1:
+movi $r0, 0
+.OR2:
+swi $r0, [$sp + 12]
+.WHILE0:
+lwi $r0, [$sp + 12]
+bnez $r0, .WHILE1
+j .WHILE2
+.WHILE1:
+lwi $r0, [$sp + 0]
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 4]
+swi $r0, [$sp + 20]
+lwi $r1, [$sp + 20]
+lwi $r0, [$sp + 16]
+add $r0, $r0, $r1
+swi $r0, [$sp + 16]
+movi $r0, 1000
+swi $r0, [$sp + 20]
+lwi $r1, [$sp + 20]
+lwi $r0, [$sp + 16]
+mul $r0, $r0, $r1
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+swi  $r0, [$sp + 12]
+movi $r0, 13
+movi $r1, 1
+bal digitalWrite
+lwi $r0, [$sp + 12]
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+bal delay
+movi $r0, 13
+movi $r1, 0
+bal digitalWrite
+movi $r0, 1000
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+bal delay
+lwi $r0, [$sp + 0]
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+addi $r0, $r0, 0
+slti $r0, $r0, 1
+zeb $r0, $r0
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+swi $r0, [$sp + 0]
+lwi $r0, [$sp + 4]
+swi $r0, [$sp + 16]
+movi $r0, 1
+swi $r0, [$sp + 20]
+lwi $r1, [$sp + 20]
+lwi $r0, [$sp + 16]
+sub $r0, $r0, $r1
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+swi $r0, [$sp + 4]
+j .WHILE0
+.WHILE2:
+movi $r0, 1
+swi $r0, [$sp + 12]
+lwi $r0, [$sp + 12]
+swi $r0, [$sp + 0]
+movi $r0, 4
+swi $r0, [$sp + 12]
+lwi $r0, [$sp + 12]
+swi $r0, [$sp + 4]
+lwi $r0, [$sp + 8]
+swi $r0, [$sp + 12]
+movi $r0, 3
+swi $r0, [$sp + 16]
+lwi $r1, [$sp + 16]
+lwi $r0, [$sp + 12]
+xor $r0, $r1, $r0
+slti $r0, $r0, 1
+zeb $r0, $r0
+swi $r0, [$sp + 12]
+lwi $r0, [$sp + 12]
+beqz $r0, .ELSE0
+lwi $r0, [$sp + 4]
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 0]
+swi $r0, [$sp + 20]
+lwi $r1, [$sp + 20]
+lwi $r0, [$sp + 16]
+sub $r0, $r0, $r1
+swi $r0, [$sp + 16]
+movi $r0, 1000
+swi $r0, [$sp + 20]
+lwi $r1, [$sp + 20]
+lwi $r0, [$sp + 16]
+mul $r0, $r0, $r1
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+swi  $r0, [$sp + 12]
+movi $r0, 13
+movi $r1, 1
+bal digitalWrite
+lwi $r0, [$sp + 12]
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+bal delay
+movi $r0, 13
+movi $r1, 0
+bal digitalWrite
+movi $r0, 1000
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+swi $r0, [$sp + 8]
+lwi $r0, [$sp + 8]
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+bal delay
+j .FIN0
+.ELSE0:
+j .FIN0
+.FIN0:
+lwi $r0, [$sp + 8]
+swi $r0, [$sp + 12]
+movi $r0, 1000
+swi $r0, [$sp + 16]
+lwi $r1, [$sp + 16]
+lwi $r0, [$sp + 12]
+xor $r0, $r1, $r0
+slti $r0, $r0, 1
+zeb $r0, $r0
+swi $r0, [$sp + 12]
+lwi $r0, [$sp + 12]
+beqz $r0, .ELSE1
+lwi $r0, [$sp + 8]
+swi $r0, [$sp + 12]
+movi $r0, 1
+swi $r0, [$sp + 16]
+lwi $r1, [$sp + 16]
+lwi $r0, [$sp + 12]
+add $r0, $r0, $r1
+swi $r0, [$sp + 12]
+lwi $r0, [$sp + 12]
+swi $r0, [$sp + 8]
+lwi $r0, [$sp + 8]
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 0]
+swi $r0, [$sp + 20]
+lwi $r1, [$sp + 20]
+lwi $r0, [$sp + 16]
+add $r0, $r0, $r1
+swi $r0, [$sp + 16]
+movi $r0, 1000
+swi $r0, [$sp + 20]
+lwi $r1, [$sp + 20]
+lwi $r0, [$sp + 16]
+divsr $r0, $r2, $r0, $r1
+swi $r2, [$sp + 16]
+lwi $r0, [$sp + 16]
+swi  $r0, [$sp + 12]
+movi $r0, 13
+movi $r1, 1
+bal digitalWrite
+lwi $r0, [$sp + 12]
+swi $r0, [$sp + 16]
+movi $r0, 1000
+swi $r0, [$sp + 20]
+lwi $r1, [$sp + 20]
+lwi $r0, [$sp + 16]
+mul $r0, $r0, $r1
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+bal delay
+movi $r0, 13
+movi $r1, 0
+bal digitalWrite
+lwi $r0, [$sp + 8]
+swi $r0, [$sp + 16]
+lwi $r0, [$sp + 16]
+bal delay
+j .FIN1
+.ELSE1:
+.FIN1:
+movi $r0, 0
+swi $r0, [$sp + 12]

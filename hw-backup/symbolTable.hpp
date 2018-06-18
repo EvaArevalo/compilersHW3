@@ -18,7 +18,7 @@ public:
 		cur_count = 0;
 		cur_scope = 0;
 	}
-	void installSymbol(char* a, int offset) {
+	void install(char* a, int offset) {
 		if (cur_count >= MAX_TABLE_SIZE) {
 
 		}
@@ -29,7 +29,7 @@ public:
 			cur_count++;
 		}
 	}
-	int lookupSymbol(char a[]) {
+	int lookup(char a[]) {
 		if (cur_count == 0) {
 			printf("No id in current scope!\n");
 			return -1;
@@ -41,7 +41,7 @@ public:
 		printf("No id in current scope!\n");
 		return -1;
 	}
-	int popSymbol() {
+	int pop() {
 		if (cur_count == 0) return 0;
 		int i;
 		int pop_count = 0;
