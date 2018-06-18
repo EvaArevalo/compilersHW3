@@ -79,4 +79,11 @@
 #define DIV_ASSIGN 335
 #define MUL_ASSIGN 336
 #define INVALIDNUM 337
-#define ELSE_DUMMY_FOR_CONFLICT 338
+#define DELAY 338
+#define DIGITALWRITE 339
+#define HIGH 340
+#define LOW 341
+#define ELSE_DUMMY_FOR_CONFLICT 342
+#define OR 343
+#define AND 344
+#define unary 345

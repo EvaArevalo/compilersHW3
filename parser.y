@@ -14,12 +14,12 @@ SymbolTable* table;
 FILE* file;
 int scope = 0;
 int top = 0;
-int function_main_flag = 0;
-int if_label_count = 0;
-int finish_label_count = 0;
-int and_label_count = 0;
-int or_label_count = 0;
-int while_label_count = 0;
+
+int if_count = 0;
+int finish_count = 0;
+int and_count = 0;
+int or_count = 0;
+int while_count = 0;
 %}
 
 %token IDENTIFIER NUMBER_SCI NUMBER_DOUBLE NUMBER_INTEGER CHARACTER
@@ -35,22 +35,9 @@ int while_label_count = 0;
 
 %token DELAY DIGITALWRITE HIGH LOW
 
-%union{
-	int intVal;
-	char idVal[4096];
-}
-
-%type <intVal> high_or_low
-
 %nonassoc ELSE_DUMMY_FOR_CONFLICT
 %nonassoc ELSE
 %nonassoc '!'
-
-%token <idVal> IDENTIFIER
-%token <intVal> NUMBER_INTEGER
-%token <idVal> AND_OP OR_OP
-%token <idVal> '>' '<' GE_OP LE_OP EQ_OP NE_OP
-%token <intVal>HIGH LOW 
 
 %left OR AND
 %left '<' '>' INC_OP DEC_OP LE_OP GE_OP EQ_OP NE_OP
@@ -62,12 +49,12 @@ int while_label_count = 0;
 %%
 
 valid_structure
-	: global_declarations function_definition {function_main_flag = 1;}
+	: global_declarations function_definition
 	;
 
 global_declarations
 	: /* empty */
-	: global_declarations external_declaration
+	| global_declarations external_declaration
 	;
 
 external_declaration
@@ -111,7 +98,7 @@ init_declarator_list_const
 init_declarator_const
 	: declarator_const '=' initializer{
 		top --;
-		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
 		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookupSymbol($1) * 4);
 	}
 	| declarator_const
@@ -125,8 +112,8 @@ direct_declarator_const
 	: IDENTIFIER{
 		table->updateScope(scope);
 		table->installSymbol($1, top);
-		printf("%s is install to %d\n", $1, top);
-		printf("%s is install to %d\n", $1, table->lookupSymbol($1));
+		printf("%d installed as %d\n", $1, top);
+		printf("%d installed as %d\n", $1, table->lookupSymbol($1));
 		top++;
 	}
 	| '(' declarator_const ')'
@@ -152,7 +139,7 @@ init_declarator_list_array
 init_declarator_array
 	: declarator_array '=' initializer{
 		top --;
-		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
 		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookupSymbol($1) * 4);
 	}
 	| declarator_array
@@ -163,7 +150,13 @@ declarator_array
 	;
 
 direct_declarator_array
-	: IDENTIFIER
+	: IDENTIFIER{
+		table->updateScope(scope);
+		table->installSymbol($1, top);
+		printf("%d installed as %d\n", $1, top);
+		printf("%d installed as %d\n", $1, table->lookupSymbol($1));
+		top++;
+	}
 	| '(' declarator_array ')'
 	| direct_declarator_array '(' ')'
 	| direct_declarator_array '[' ']'
@@ -217,8 +210,20 @@ parameter_declaration
 	;
 
 identifier_list
-	: IDENTIFIER
-	| identifier_list ',' IDENTIFIER
+	: IDENTIFIER {
+		table->updateScope(scope);
+		table->installSymbol($1, top);
+		printf("%d installed as %d\n", $1, top);
+		printf("%d installed as %d\n", $1, table->lookupSymbol($1));
+		top++;
+	}
+	| identifier_list ',' IDENTIFIER {
+		table->updateScope(scope);
+		table->installSymbol($1, top);
+		printf("%d installed as %d\n", $1, top);
+		printf("%d installed as %d\n", $1, table->lookupSymbol($1));
+		top++;
+	}
 	;
 
 compound_statement
@@ -290,46 +295,46 @@ expression_statement
 selection_statement
 	: IF '(' expression ')' {
 		top --;
-		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
-		fprintf(file, "beqz $r0, .ELSE%d\n", if_label_count);
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "beqz $r0, .ELSE%d\n", if_count);
 		scope++;
 		table->updateScope(scope);
 	}
 	statement  {
-		fprintf(file, "j .FIN%d\n", finish_label_count);
+		fprintf(file, "j .FIN%d\n", finish_count);
 		int pop_count = table->popSymbol();
 		top = top - pop_count;
 		scope --;
 		table->updateScope(scope);
 		//rest
-		fprintf(file, ".ELSE%d:\n", if_label_count);
-		if_label_count++;
-		fprintf(file, ".FIN%d:\n", finish_label_count);
-		finish_label_count++;
+		fprintf(file, ".ELSE%d:\n", if_count);
+		if_count++;
+		fprintf(file, ".FIN%d:\n", finish_count);
+		finish_count++;
 	}
 	%prec ELSE_DUMMY_FOR_CONFLICT
 	| IF '(' expression ')' {
 		top --;
-		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
-		fprintf(file, "beqz $r0, .ELSE%d\n", if_label_count);
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "beqz $r0, .ELSE%d\n", if_count);
 		scope++;
 		table->updateScope(scope);
     }
 	statement {
-		fprintf(file, "j .FIN%d\n", finish_label_count);
+		fprintf(file, "j .FIN%d\n", finish_count);
 		int pop_count = table->popSymbol();
 		top = top - pop_count;
 		scope --;
 		table->updateScope(scope);
 		//rest
-		fprintf(file, ".FIN%d:\n", finish_label_count);
-		finish_label_count++;
+		fprintf(file, ".FIN%d:\n", finish_count);
+		finish_count++;
 	} 
 	ELSE{
 		scope ++;
 		table->updateScope(scope);
-		fprintf(file, ".ELSE%d:\n", if_label_count);
-		if_label_count++;
+		fprintf(file, ".ELSE%d:\n", if_count);
+		if_count++;
 	}
 	statement
 	| SWITCH '(' expression ')' statement
@@ -337,21 +342,21 @@ selection_statement
 
 iteration_statement
 	: WHILE '(' expression ')' {
-		fprintf(file, ".WHILE%d:\n", while_label_count);
-		while_label_count++;
+		fprintf(file, ".WHILE%d:\n", while_count);
+		while_count++;
 		top--;
-		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
-		fprintf(file, "bnez $r0, .WHILE%d\n", while_label_count);
-		fprintf(file, "j .WHILE%d\n", while_label_count + 1);
-		fprintf(file, ".WHILE%d:\n", while_label_count);
-		while_label_count++;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "bnez $r0, .WHILE%d\n", while_count);
+		fprintf(file, "j .WHILE%d\n", while_count + 1);
+		fprintf(file, ".WHILE%d:\n", while_count);
+		while_count++;
 		scope++;
 		table->updateScope(scope);
 	}
 	statement{
-		fprintf(file, "j .WHILE%d\n", while_label_count-2);
-		fprintf(file, ".WHILE%d:\n", while_label_count);
-		while_label_count++;
+		fprintf(file, "j .WHILE%d\n", while_count-2);
+		fprintf(file, ".WHILE%d:\n", while_count);
+		while_count++;
 		int pop_count = table->popSymbol();
 		top = top - pop_count;
 		scope --;
@@ -373,7 +378,7 @@ assignment_expression
 		top --;
 		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
 		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookupSymbol($1) * 4);
-		printf("%s offset is %d\n", $1, table->lookupSymbol($1));
+		printf("%d offset is %d\n", $1, table->lookupSymbol($1));
 	}
 	;
 
@@ -383,7 +388,7 @@ assignment_expression_no_function
 		top --;
 		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
 		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookupSymbol($1) * 4);
-		printf("%s offset is %d\n", $1, table->lookupSymbol($1));
+		printf("%d offset is %d\n", $1, table->lookupSymbol($1));
 	}
 	;
 
@@ -497,8 +502,8 @@ primary_expression_no_function
 	: IDENTIFIER{
 		table->updateScope(scope);
 		table->installSymbol($1, top);
-		printf("%s is install to %d\n", $1, top);
-		printf("%s is install to %d\n", $1, table->lookupSymbol($1));
+		printf("%d installed as %d\n", $1, top);
+		printf("%d install as %d\n", $1, table->lookupSymbol($1));
 		top ++;
 	}
 	| number
@@ -530,9 +535,9 @@ argument_expression_list
 
 primary_expression
 	: IDENTIFIER{
-		printf("%s offset = %d\n", $1, table->lookupSymbol($1));
+		printf("%d offset is  %d\n", $1, table->lookupSymbol($1));
 		fprintf(file, "lwi $r0, [$sp + %d]\n", table->lookupSymbol($1) * 4);
-		fprintf(file, "swi $r0, [$sp + %d]\n", top * 4);
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
 		top++;
 	}
 	| number
@@ -678,37 +683,37 @@ void popStack(const char* op){
 	}else if(!strcmp(op, "&&")){
 		top--;
 		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
-		fprintf(file, "beqz $r0, .AND%d\n", and_label_count);
+		fprintf(file, "beqz $r0, .AND%d\n", and_count);
 		top --;
 		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
-		fprintf(file, "beqz $r0, .AND%d\n", and_label_count);
+		fprintf(file, "beqz $r0, .AND%d\n", and_count);
 
 		fprintf(file, "movi $r0, 1\n");
-		fprintf(file, "j .AND%d\n", and_label_count+1);
-		fprintf(file, ".AND%d:\n", and_label_count);
-		and_label_count++;
+		fprintf(file, "j .AND%d\n", and_count+1);
+		fprintf(file, ".AND%d:\n", and_count);
+		and_count++;
 		fprintf(file, "movi $r0, 0\n");
-		fprintf(file, ".AND%d:\n", and_label_count);
-		and_label_count++;
+		fprintf(file, ".AND%d:\n", and_count);
+		and_count++;
 		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
 		top++;
 
 	}else if(!strcmp(op, "||")){
 		top--;
 		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
-		fprintf(file, "beqz $r0, .OR%d\n", or_label_count+1);
+		fprintf(file, "beqz $r0, .OR%d\n", or_count+1);
 		top --;
 		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
-		fprintf(file, "beqz $r0, .OR%d\n", or_label_count);
-		fprintf(file, ".OR%d:\n", or_label_count);
-		or_label_count++;
+		fprintf(file, "beqz $r0, .OR%d\n", or_count);
+		fprintf(file, ".OR%d:\n", or_count);
+		or_count++;
 		fprintf(file, "movi $r0, 1\n");
-		fprintf(file, "j .OR%d\n", or_label_count+1);
-		fprintf(file, ".OR%d:\n", or_label_count);
-		or_label_count++;
+		fprintf(file, "j .OR%d\n", or_count+1);
+		fprintf(file, ".OR%d:\n", or_count);
+		or_count++;
 		fprintf(file, "movi $r0, 0\n");
-		fprintf(file, ".OR%d:\n", or_label_count);
-		or_label_count++;
+		fprintf(file, ".OR%d:\n", or_count);
+		or_count++;
 		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
 		top++;
 	}else if(!strcmp(op, "!")){

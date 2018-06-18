@@ -1,7 +1,7 @@
 # makefile
 # creates "scanner" from "scanner.l" and "test.c"
 
-CC=gcc
+CC=g++
 LEX=flex
 PARS=byacc
 
