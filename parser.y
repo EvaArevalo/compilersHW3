@@ -35,8 +35,28 @@ int while_label_count = 0;
 
 %token DELAY DIGITALWRITE HIGH LOW
 
+%union{
+	int intVal;
+	char idVal[4096];
+}
+
+%type <intVal> high_or_low
+
 %nonassoc ELSE_DUMMY_FOR_CONFLICT
 %nonassoc ELSE
+
+%token <idVal> IDENTIFIER
+%token <intVal> NUMBER_INTEGER
+%token <idVal> AND OR
+%token <idVal>COMPARE
+%token <intVal>HIGH LOW 
+
+%left OR AND
+%nonassoc '!'
+%left '<' '>' INC_OP DEC_OP LE_OP GE_OP EQ_OP NE_OP
+%left '+' '-' '*' '/' '%'
+%left unary
+%left '[' ']'
 
 %start valid_structure
 %%
@@ -92,7 +112,7 @@ init_declarator_const
 	: declarator_const '=' initializer{
 		top --;
 		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
-		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookup($1) * 4);
+		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookupSymbol($1) * 4);
 	}
 	| declarator_const
 	;
@@ -104,9 +124,9 @@ declarator_const
 direct_declarator_const
 	: IDENTIFIER{
 		table->updateScope(scope);
-		table->install($1, top);
+		table->installSymbol($1, top);
 		printf("%s is install to %d\n", $1, top);
-		printf("%s is install to %d\n", $1, table->lookup($1));
+		printf("%s is install to %d\n", $1, table->lookupSymbol($1));
 		top++;
 	}
 	| '(' declarator_const ')'
@@ -133,7 +153,7 @@ init_declarator_array
 	: declarator_array '=' initializer{
 		top --;
 		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
-		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookup($1) * 4);
+		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookupSymbol($1) * 4);
 	}
 	| declarator_array
 	;
@@ -277,7 +297,7 @@ selection_statement
 	}
 	statement  {
 		fprintf(file, "j .FIN%d\n", finish_label_count);
-		int pop_count = table->pop();
+		int pop_count = table->popSymbol();
 		top = top - pop_count;
 		scope --;
 		table->updateScope(scope);
@@ -297,7 +317,7 @@ selection_statement
     }
 	statement {
 		fprintf(file, "j .FIN%d\n", finish_label_count);
-		int pop_count = table->pop();
+		int pop_count = table->popSymbol();
 		top = top - pop_count;
 		scope --;
 		table->updateScope(scope);
@@ -332,7 +352,7 @@ iteration_statement
 		fprintf(file, "j .WHILE%d\n", while_label_count-2);
 		fprintf(file, ".WHILE%d:\n", while_label_count);
 		while_label_count++;
-		int pop_count = table->pop();
+		int pop_count = table->popSymbol();
 		top = top - pop_count;
 		scope --;
 		table->updateScope(scope);
@@ -352,8 +372,8 @@ assignment_expression
 	| unary_expression '=' assignment_expression{
 		top --;
 		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
-		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookup($1) * 4);
-		printf("%s offset is %d\n", $1, table->lookup($1));
+		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookupSymbol($1) * 4);
+		printf("%s offset is %d\n", $1, table->lookupSymbol($1));
 	}
 	;
 
@@ -362,8 +382,8 @@ assignment_expression_no_function
 	| unary_expression_no_function '=' assignment_expression_no_function{
 		top --;
 		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
-		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookup($1) * 4);
-		printf("%s offset is %d\n", $1, table->lookup($1));
+		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookupSymbol($1) * 4);
+		printf("%s offset is %d\n", $1, table->lookupSymbol($1));
 	}
 	;
 
@@ -476,9 +496,9 @@ postfix_expression_no_function
 primary_expression_no_function
 	: IDENTIFIER{
 		table->updateScope(scope);
-		table->install($1, top);
+		table->installSymbol($1, top);
 		printf("%s is install to %d\n", $1, top);
-		printf("%s is install to %d\n", $1, table->lookup($1));
+		printf("%s is install to %d\n", $1, table->lookupSymbol($1));
 		top ++;
 	}
 	| number
@@ -510,8 +530,8 @@ argument_expression_list
 
 primary_expression
 	: IDENTIFIER{
-		printf("%s offset = %d\n", $1, table->lookup($1));
-		fprintf(file, "lwi $r0, [$sp + %d]\n", table->lookup($1) * 4);
+		printf("%s offset = %d\n", $1, table->lookupSymbol($1));
+		fprintf(file, "lwi $r0, [$sp + %d]\n", table->lookupSymbol($1) * 4);
 		fprintf(file, "swi $r0, [$sp + %d]\n", top * 4);
 		top++;
 	}
@@ -536,10 +556,10 @@ number
 #include <stdlib.h>
 
 extern int lineCount;
-extern int yytext[];
+
 extern char** lineContents;
-extern numStrings;
-extern wordCount;
+extern int numStrings;
+extern int wordCount;
 extern void freeLineContents();
 
 void popStack(const char* op){
