@@ -89,7 +89,11 @@ init_declarator_list_const
 	;
 
 init_declarator_const
-	: declarator_const '=' initializer
+	: declarator_const '=' initializer{
+		top --;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
+		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookup($1) * 4);
+	}
 	| declarator_const
 	;
 
@@ -126,7 +130,11 @@ init_declarator_list_array
 	| init_declarator_list_array ',' init_declarator_array
 
 init_declarator_array
-	: declarator_array '=' initializer
+	: declarator_array '=' initializer{
+		top --;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
+		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookup($1) * 4);
+	}
 	| declarator_array
 	;
 
@@ -502,11 +510,10 @@ argument_expression_list
 
 primary_expression
 	: IDENTIFIER{
-		table->updateScope(scope);
-		table->install($1, top);
-		printf("%s is install to %d\n", $1, top);
-		printf("%s is install to %d\n", $1, table->lookup($1));
-		top ++;
+		printf("%s offset = %d\n", $1, table->lookup($1));
+		fprintf(file, "lwi $r0, [$sp + %d]\n", table->lookup($1) * 4);
+		fprintf(file, "swi $r0, [$sp + %d]\n", top * 4);
+		top++;
 	}
 	| number
 	| STRING
