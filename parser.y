@@ -1,7 +1,25 @@
 %{
+//includes
 #include <stdio.h>
+#include <stdlib.h>
+#include "symbolTable.hpp"
+#include "scanner.h"
+#include "y.tab.h"
+
 int yylex();
 int yyerror(char* msg);
+
+//variables
+SymbolTable* table;
+FILE* file;
+int scope = 0;
+int top = 0;
+int function_main_flag = 0;
+int if_label_count = 0;
+int finish_label_count = 0;
+int and_label_count = 0;
+int or_label_count = 0;
+int while_label_count = 0;
 %}
 
 %token IDENTIFIER NUMBER_SCI NUMBER_DOUBLE NUMBER_INTEGER CHARACTER
@@ -15,6 +33,8 @@ int yyerror(char* msg);
 %token ADD_ASSIGN SUB_ASSIGN DIV_ASSIGN MUL_ASSIGN
 %token INVALIDNUM
 
+%token DELAY DIGITALWRITE HIGH LOW
+
 %nonassoc ELSE_DUMMY_FOR_CONFLICT
 %nonassoc ELSE
 
@@ -22,7 +42,7 @@ int yyerror(char* msg);
 %%
 
 valid_structure
-	: global_declarations function_definition
+	: global_declarations function_definition {function_main_flag = 1;}
 	;
 
 global_declarations
@@ -185,6 +205,33 @@ statement
 	| iteration_statement
 	| labeled_statement
 	| jump_statement
+	| delay_statement
+	| digital_write_statement
+	;
+
+high_or_low
+	: HIGH{ 
+		$$ = 1;
+	}
+	| LOW{
+		$$ = 0;
+	}
+	;
+
+delay_statement
+	: DELAY '(' expression ')' {
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "bal delay\n");
+	}
+    ;
+
+digital_write_statement
+	: DIGITALWRITE '(' NUMBER_INTEGER ',' high_or_low ')' {
+		fprintf(file, "movi $r0, %d\n", $3);
+		fprintf(file, "movi $r1, %d\n", $5);
+		fprintf(file, "bal digitalWrite\n");
+    }
 	;
 
 labeled_statement
@@ -375,7 +422,11 @@ primary_expression
 	;
 
 number
-	: NUMBER_INTEGER
+	: NUMBER_INTEGER{
+		fprintf(file, "movi $r0, %d\n", $1);
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top++;
+	}
 	| NUMBER_DOUBLE
 	| NUMBER_SCI
 	| CHARACTER
@@ -392,18 +443,173 @@ extern numStrings;
 extern wordCount;
 extern void freeLineContents();
 
+void popStack(const char* op){
+	
+	if(!strcmp(op, "+")){
+		top--;
+		fprintf(file, "lwi $r1, [$sp + %d]\n", top*4);
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "add $r0, $r0, $r1\n");
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top++;
+	}else if(!strcmp(op, "-")){
+		top--;
+		fprintf(file, "lwi $r1, [$sp + %d]\n", top*4);
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "sub $r0, $r0, $r1\n");
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top++;
+	}else if(!strcmp(op, "*")){
+		top--;
+		fprintf(file, "lwi $r1, [$sp + %d]\n", top*4);
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "mul $r0, $r0, $r1\n");
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top++;
+	}else if(!strcmp(op, "/")){
+		top--;
+		fprintf(file, "lwi $r1, [$sp + %d]\n", top*4);
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "divsr $r0, $r2, $r0, $r1\n");
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top++;
+	}else if(!strcmp(op, "%")){
+		top--;
+		fprintf(file, "lwi $r1, [$sp + %d]\n", top*4);
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "divsr $r0, $r2, $r0, $r1\n");
+		fprintf(file, "swi $r2, [$sp + %d]\n", top*4);
+		top++;
+	}else if(!strcmp(op, "++")){
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "addi $r0, $r0, 1\n");
+		fprintf(file, "swi $r0, [$sp +%d]\n", top*4);
+		top++;
+	}else if(!strcmp(op, "--")){
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "addi $r0, $r0, -1\n");
+		fprintf(file, "swi $r0, [$sp +%d]\n", top*4);
+		top++;
+	}else if(!strcmp(op, ">")){
+		top--;
+		fprintf(file, "lwi $r1, [$sp + %d]\n", top*4);
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "slts $r0, $r1, $r0\n");
+		fprintf(file, "zeb $r0, $r0\n");
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top ++;
+	}else if(!strcmp(op, ">=")){
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		top--;
+		fprintf(file, "lwi $r1, [$sp + %d]\n", top*4);
+		fprintf(file, "slts $r0, $r1, $r0\n");
+		fprintf(file, "xori $r0, $r0, 1\n");
+		fprintf(file, "zeb $r0, $r0\n");
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top ++;
+	}else if(!strcmp(op, "<")){
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		top--;
+		fprintf(file, "lwi $r1, [$sp + %d]\n", top*4);
+		fprintf(file, "slts $r0, $r1, $r0\n");
+		fprintf(file, "zeb $r0, $r0\n");
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top ++;
+	}else if(!strcmp(op, "<=")){
+		top--;
+		fprintf(file, "lwi $r1, [$sp + %d]\n", top*4);
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "slts $r0, $r1, $r0\n");
+		fprintf(file, "xori $r0, $r0, 1\n");
+		fprintf(file, "zeb $r0, $r0\n");
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top++;
+	}else if(!strcmp(op, "==")){
+		top--;
+		fprintf(file, "lwi $r1, [$sp + %d]\n", top*4);
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "xor $r0, $r1, $r0\n");
+		fprintf(file, "slti $r0, $r0, 1\n");
+		fprintf(file, "zeb $r0, $r0\n");
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top++;
+	}else if(!strcmp(op, "!=")){
+		top--;
+		fprintf(file, "lwi $r1, [$sp + %d]\n", top*4);
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "xor $r0, $r1, $r0\n");
+		fprintf(file, "movi $r1, 0\n");
+		fprintf(file, "slt $r0, $r1, $r0\n");
+		fprintf(file, "zeb $r0, $r0\n");
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top++;
+	}else if(!strcmp(op, "&&")){
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "beqz $r0, .AND%d\n", and_label_count);
+		top --;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "beqz $r0, .AND%d\n", and_label_count);
+
+		fprintf(file, "movi $r0, 1\n");
+		fprintf(file, "j .AND%d\n", and_label_count+1);
+		fprintf(file, ".AND%d:\n", and_label_count);
+		and_label_count++;
+		fprintf(file, "movi $r0, 0\n");
+		fprintf(file, ".AND%d:\n", and_label_count);
+		and_label_count++;
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top++;
+
+	}else if(!strcmp(op, "||")){
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "beqz $r0, .OR%d\n", or_label_count+1);
+		top --;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "beqz $r0, .OR%d\n", or_label_count);
+		fprintf(file, ".OR%d:\n", or_label_count);
+		or_label_count++;
+		fprintf(file, "movi $r0, 1\n");
+		fprintf(file, "j .OR%d\n", or_label_count+1);
+		fprintf(file, ".OR%d:\n", or_label_count);
+		or_label_count++;
+		fprintf(file, "movi $r0, 0\n");
+		fprintf(file, ".OR%d:\n", or_label_count);
+		or_label_count++;
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top++;
+	}else if(!strcmp(op, "!")){
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "addi $r0, $r0, 0\n");
+		fprintf(file, "slti $r0, $r0, 1\n");
+		fprintf(file, "zeb $r0, $r0\n");
+		fprintf(file, "swi $r0, [$sp + %d]\n", top*4);
+		top++;
+	}
+}
+
 int main(int argc, char*argv[]){
-  ++argv;
-  --argc;	/*skip over program name*/
+	++argv;
+	--argc;	/*skip over program name*/
 
-  lineContents = (char**)malloc(sizeof(char*)*numStrings); 
-
-  /*if (0<argc){
-  	yyin = fopen(argv[0], "r");
-  } else {
-  	yyin=stdin;
-  }*/
- 
+	file = fopen("assembly","w");
+	table = new SymbolTable();
+ 	lineContents = (char**)malloc(sizeof(char*)*numStrings); 
 	yyparse();
 	printf("No syntax error!\n");
 	freeLineContents();
