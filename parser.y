@@ -44,15 +44,15 @@ int while_label_count = 0;
 
 %nonassoc ELSE_DUMMY_FOR_CONFLICT
 %nonassoc ELSE
+%nonassoc '!'
 
 %token <idVal> IDENTIFIER
 %token <intVal> NUMBER_INTEGER
-%token <idVal> AND OR
-%token <idVal>COMPARE
+%token <idVal> AND_OP OR_OP
+%token <idVal> '>' '<' GE_OP LE_OP EQ_OP NE_OP
 %token <intVal>HIGH LOW 
 
 %left OR AND
-%nonassoc '!'
 %left '<' '>' INC_OP DEC_OP LE_OP GE_OP EQ_OP NE_OP
 %left '+' '-' '*' '/' '%'
 %left unary
@@ -67,7 +67,7 @@ valid_structure
 
 global_declarations
 	: /* empty */
-	| global_declarations external_declaration
+	: global_declarations external_declaration
 	;
 
 external_declaration
@@ -389,12 +389,12 @@ assignment_expression_no_function
 
 logical_or_expression
 	: logical_and_expression
-	| logical_or_expression OR_OP logical_and_expression
+	| logical_or_expression OR_OP logical_and_expression  {popStack($2);}
 	;
 
 logical_and_expression
 	: and_expression
-	| logical_and_expression AND_OP and_expression
+	| logical_and_expression AND_OP and_expression  {popStack($2);}
 	;
 
 and_expression
@@ -404,46 +404,46 @@ and_expression
 
 equality_expression
 	: relational_expression
-	| equality_expression EQ_OP relational_expression
-	| equality_expression NE_OP relational_expression
+	| equality_expression EQ_OP relational_expression  {popStack($2);}
+	| equality_expression NE_OP relational_expression  {popStack($2);}
 	;
 
 relational_expression
 	: additive_expression
-	| relational_expression '>' additive_expression
-	| relational_expression '<' additive_expression
-	| relational_expression GE_OP additive_expression
-	| relational_expression LE_OP additive_expression
+	| relational_expression '>' additive_expression {popStack($2);}
+	| relational_expression '<' additive_expression {popStack($2);}
+	| relational_expression GE_OP additive_expression {popStack($2);}
+	| relational_expression LE_OP additive_expression {popStack($2);}
 	;
 
 additive_expression
 	: multiplicative_expression
-	| additive_expression '+' multiplicative_expression
-	| additive_expression '-' multiplicative_expression
+	| additive_expression '+' multiplicative_expression {popStack("+");}
+	| additive_expression '-' multiplicative_expression {popStack("-");}
 	;
 
 multiplicative_expression
 	: unary_expression
-	| multiplicative_expression '*' unary_expression
-	| multiplicative_expression '/' unary_expression
-	| multiplicative_expression '%' unary_expression
+	| multiplicative_expression '*' unary_expression {popStack("*");}
+	| multiplicative_expression '/' unary_expression {popStack("/");}
+	| multiplicative_expression '%' unary_expression {popStack("%");}
 	;
 
 unary_expression
 	: postfix_expression
-	| INC_OP unary_expression
-	| DEC_OP unary_expression
+	| INC_OP unary_expression {popStack("++");}
+	| DEC_OP unary_expression {popStack("--");}
 	| unary_operator unary_expression
 	;
 
 logical_or_expression_no_function
 	: logical_and_expression_no_function
-	| logical_or_expression_no_function OR_OP logical_and_expression_no_function
+	| logical_or_expression_no_function OR_OP logical_and_expression_no_function {popStack($2);}
 	;
 
 logical_and_expression_no_function
 	: and_expression_no_function
-	| logical_and_expression_no_function AND_OP and_expression_no_function
+	| logical_and_expression_no_function AND_OP and_expression_no_function {popStack($2);}
 	;
 
 and_expression_no_function
@@ -453,44 +453,44 @@ and_expression_no_function
 
 equality_expression_no_function
 	: relational_expression_no_function
-	| equality_expression_no_function EQ_OP relational_expression_no_function
-	| equality_expression_no_function NE_OP relational_expression_no_function
+	| equality_expression_no_function EQ_OP relational_expression_no_function {popStack($2);}
+	| equality_expression_no_function NE_OP relational_expression_no_function {popStack($2);}
 	;
 
 relational_expression_no_function
 	: additive_expression_no_function
-	| relational_expression_no_function '>' additive_expression_no_function
-	| relational_expression_no_function '<' additive_expression_no_function
-	| relational_expression_no_function GE_OP additive_expression_no_function
-	| relational_expression_no_function LE_OP additive_expression_no_function
+	| relational_expression_no_function '>' additive_expression_no_function {popStack($2);}
+	| relational_expression_no_function '<' additive_expression_no_function {popStack($2);}
+	| relational_expression_no_function GE_OP additive_expression_no_function {popStack($2);}
+	| relational_expression_no_function LE_OP additive_expression_no_function {popStack($2);}
 	;
 
 additive_expression_no_function
 	: multiplicative_expression_no_function
-	| additive_expression_no_function '+' multiplicative_expression_no_function
-	| additive_expression_no_function '-' multiplicative_expression_no_function
+	| additive_expression_no_function '+' multiplicative_expression_no_function {popStack("+");}
+	| additive_expression_no_function '-' multiplicative_expression_no_function {popStack("-");}
 	;
 
 multiplicative_expression_no_function
 	: unary_expression_no_function
-	| multiplicative_expression_no_function '*' unary_expression_no_function
-	| multiplicative_expression_no_function '/' unary_expression_no_function
-	| multiplicative_expression_no_function '%' unary_expression_no_function
+	| multiplicative_expression_no_function '*' unary_expression_no_function {popStack("*");}
+	| multiplicative_expression_no_function '/' unary_expression_no_function {popStack("/");}
+	| multiplicative_expression_no_function '%' unary_expression_no_function {popStack("%");}
 	;
 
 unary_expression_no_function
 	: postfix_expression_no_function
-	| INC_OP unary_expression_no_function
-	| DEC_OP unary_expression_no_function
-	| unary_operator unary_expression_no_function
+	| INC_OP unary_expression_no_function {popStack("++");}
+	| DEC_OP unary_expression_no_function {popStack("--");}
+	| unary_operator unary_expression_no_function 
 	;
 
 postfix_expression_no_function
 	: primary_expression_no_function
 	| postfix_expression_no_function  '[' ']'
 	| postfix_expression_no_function '.' IDENTIFIER
-	| postfix_expression_no_function INC_OP
-	| postfix_expression_no_function DEC_OP
+	| postfix_expression_no_function INC_OP {popStack("++");}
+	| postfix_expression_no_function DEC_OP {popStack("--");}
 	;
 
 primary_expression_no_function
@@ -507,10 +507,10 @@ primary_expression_no_function
 	;
 
 unary_operator
-	: '&'
-	| '+'
-	| '-'
-	| '!'
+	: '&' {popStack("&");}
+	| '+' {}
+	| '-' {}
+	| '!' {popStack("!");}
 	;
 
 postfix_expression
