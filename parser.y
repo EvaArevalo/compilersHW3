@@ -51,7 +51,9 @@ global_declarations
 	;
 
 external_declaration
-	: function_definition
+	: function_definition {
+		scope++;
+	}
 	| declaration
 	;
 
@@ -96,7 +98,13 @@ declarator_const
 	;
 
 direct_declarator_const
-	: IDENTIFIER
+	: IDENTIFIER{
+		table->updateScope(scope);
+		table->install($1, top);
+		printf("%s is install to %d\n", $1, top);
+		printf("%s is install to %d\n", $1, table->lookup($1));
+		top++;
+	}
 	| '(' declarator_const ')'
 	| direct_declarator_const '[' ']'
 	| direct_declarator_const '[' logical_or_expression']'
@@ -252,13 +260,75 @@ expression_statement
 	;
 
 selection_statement
-	: IF '(' expression ')' statement %prec ELSE_DUMMY_FOR_CONFLICT
-	| IF '(' expression ')' statement ELSE statement
+	: IF '(' expression ')' {
+		top --;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
+		fprintf(file, "beqz $r0, .ELSE%d\n", if_label_count);
+		scope++;
+		table->updateScope(scope);
+	}
+	statement  {
+		fprintf(file, "j .FIN%d\n", finish_label_count);
+		int pop_count = table->pop();
+		top = top - pop_count;
+		scope --;
+		table->updateScope(scope);
+		//rest
+		fprintf(file, ".ELSE%d:\n", if_label_count);
+		if_label_count++;
+		fprintf(file, ".FIN%d:\n", finish_label_count);
+		finish_label_count++;
+	}
+	%prec ELSE_DUMMY_FOR_CONFLICT
+	| IF '(' expression ')' {
+		top --;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
+		fprintf(file, "beqz $r0, .ELSE%d\n", if_label_count);
+		scope++;
+		table->updateScope(scope);
+    }
+	statement {
+		fprintf(file, "j .FIN%d\n", finish_label_count);
+		int pop_count = table->pop();
+		top = top - pop_count;
+		scope --;
+		table->updateScope(scope);
+		//rest
+		fprintf(file, ".FIN%d:\n", finish_label_count);
+		finish_label_count++;
+	} 
+	ELSE{
+		scope ++;
+		table->updateScope(scope);
+		fprintf(file, ".ELSE%d:\n", if_label_count);
+		if_label_count++;
+	}
+	statement
 	| SWITCH '(' expression ')' statement
 	;
 
 iteration_statement
-	: WHILE '(' expression ')' statement
+	: WHILE '(' expression ')' {
+		fprintf(file, ".WHILE%d:\n", while_label_count);
+		while_label_count++;
+		top--;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top * 4);
+		fprintf(file, "bnez $r0, .WHILE%d\n", while_label_count);
+		fprintf(file, "j .WHILE%d\n", while_label_count + 1);
+		fprintf(file, ".WHILE%d:\n", while_label_count);
+		while_label_count++;
+		scope++;
+		table->updateScope(scope);
+	}
+	statement{
+		fprintf(file, "j .WHILE%d\n", while_label_count-2);
+		fprintf(file, ".WHILE%d:\n", while_label_count);
+		while_label_count++;
+		int pop_count = table->pop();
+		top = top - pop_count;
+		scope --;
+		table->updateScope(scope);
+	}
 	| DO statement WHILE '(' expression ')' ';'
 	| FOR '(' expression_statement expression_statement ')' statement
 	| FOR '(' expression_statement expression_statement expression ')' statement
@@ -271,12 +341,22 @@ expression
 
 assignment_expression
 	: logical_or_expression
-	| unary_expression '=' assignment_expression
+	| unary_expression '=' assignment_expression{
+		top --;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookup($1) * 4);
+		printf("%s offset is %d\n", $1, table->lookup($1));
+	}
 	;
 
 assignment_expression_no_function
 	: logical_or_expression_no_function
-	| unary_expression_no_function '=' assignment_expression_no_function
+	| unary_expression_no_function '=' assignment_expression_no_function{
+		top --;
+		fprintf(file, "lwi $r0, [$sp + %d]\n", top*4);
+		fprintf(file, "swi  $r0, [$sp + %d]\n", table->lookup($1) * 4);
+		printf("%s offset is %d\n", $1, table->lookup($1));
+	}
 	;
 
 logical_or_expression
@@ -386,7 +466,13 @@ postfix_expression_no_function
 	;
 
 primary_expression_no_function
-	: IDENTIFIER
+	: IDENTIFIER{
+		table->updateScope(scope);
+		table->install($1, top);
+		printf("%s is install to %d\n", $1, top);
+		printf("%s is install to %d\n", $1, table->lookup($1));
+		top ++;
+	}
 	| number
 	| STRING
 	| '(' expression ')'
@@ -415,7 +501,13 @@ argument_expression_list
 	;
 
 primary_expression
-	: IDENTIFIER
+	: IDENTIFIER{
+		table->updateScope(scope);
+		table->install($1, top);
+		printf("%s is install to %d\n", $1, top);
+		printf("%s is install to %d\n", $1, table->lookup($1));
+		top ++;
+	}
 	| number
 	| STRING
 	| '(' expression ')'
